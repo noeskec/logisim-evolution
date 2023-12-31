@@ -39,7 +39,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import com.bfh.logisim.fpga.Chipset;
@@ -58,24 +60,40 @@ public class LatticeDownload extends FPGADownload {
   
   public enum TOOLCHAIN { DIAMOND_WIN, DIAMOND_UNIX, ISP_LEVER_WIN, ISP_LEVER_UNIX, UNKNOWN };
   
+  private static Map<String,TOOLCHAIN> toolMap;
+
+  static {
+	  toolMap = new HashMap<>();
+	  toolMap.put("pnmainc.exe",TOOLCHAIN.DIAMOND_WIN);
+	  toolMap.put("diamondc",TOOLCHAIN.DIAMOND_UNIX);
+	  toolMap.put("projnav.exe",TOOLCHAIN.ISP_LEVER_WIN);
+  }
+
+  public static String getTool() {
+	  return getTool(Settings.getSettings().GetLatticeToolPath());
+  }
+
+  public static String getTool(String toolPathBinDirectory) {
+	  Path toolPath = Paths.get(toolPathBinDirectory);
+	  for (String tool : toolMap.keySet()) {
+		  if (Files.exists(toolPath.resolve(tool))) {
+			  return tool;
+		  }
+	  }
+	  return null;
+  }
+
+  public static TOOLCHAIN getToolChainTypeFromToolname(String toolName) {
+	  return toolName == null ? TOOLCHAIN.UNKNOWN : toolMap.get(toolName);
+  }
+
   public static TOOLCHAIN getToolChainType() {
-	  return getToolChainType(Settings.getSettings().GetLatticeToolPath());
+	  return getToolChainTypeFromToolname(getTool());
   }
 
   public static TOOLCHAIN getToolChainType(String toolPathBinDirectory) {
-	  Path toolPath = Paths.get(toolPathBinDirectory);
-	  if (Files.exists(toolPath.resolve("pnmainc.exe"))) {
-		  return TOOLCHAIN.DIAMOND_WIN;
-	  }
-	  if (Files.exists(toolPath.resolve("diamondc"))) {
-		  return TOOLCHAIN.DIAMOND_UNIX;
-	  }
-	  if (Files.exists(toolPath.resolve("projnav.exe"))) {
-		  return TOOLCHAIN.ISP_LEVER_WIN;
-	  }
-	  return TOOLCHAIN.UNKNOWN;
+	  return getToolChainTypeFromToolname(getTool(toolPathBinDirectory));
   }
-
   
   private String getRelativePath(String pathRoot, String... pathes) {
 	  return getRelativePathAsPath(pathRoot,pathes).toString();
@@ -134,10 +152,12 @@ public class LatticeDownload extends FPGADownload {
 	public ArrayList<Stage> initiateDownload(Commander cmdr) {
     ArrayList<Stage> stages = new ArrayList<>();
 
+    TOOLCHAIN toolChainType = getToolChainType();
+
 	if (!readyForDownload()) {
 		
 	  String synthFile;
-	  switch (getToolChainType()) {
+	  switch (toolChainType) {
 	  case DIAMOND_WIN: synthFile = PROJECT_RUN_FILE; break;
 	  case DIAMOND_UNIX: synthFile = PROJECT_RUN_FILE_UNIX; break;
 	  case ISP_LEVER_WIN: synthFile = PROJECT_RUN_FILE_ISPLEVER; break;
@@ -160,7 +180,7 @@ public class LatticeDownload extends FPGADownload {
 	}
 	
 	String downloadFile;
-	switch (getToolChainType()) {
+	switch (toolChainType) {
 	case DIAMOND_WIN: downloadFile = PROJECT_DOWNLOAD_FILE; break;
 	case DIAMOND_UNIX: downloadFile = PROJECT_DOWNLOAD_FILE_UNIX; break;
 	case ISP_LEVER_WIN: downloadFile = PROJECT_DOWNLOAD_FILE_ISPLEVER; break;
@@ -222,14 +242,15 @@ public class LatticeDownload extends FPGADownload {
 	boolean success = f != null && FileWriter.WriteContents(f, out, err);
 	
 	// ---- lattice diamond scripts
+
 	// tcl-project
 	out = new Hdl(lang, err);
 	final String synth_engine = "lse";
-	out.stmt("prj_project new -name \"%s\" -impl \"impl1\" -dev %s -synthesis \"%s\"",PROJECT_NAME,device,synth_engine);
+	out.stmt("prj_project new -name \"%s\" -lpf \"%s.lpf\" -impl \"impl1\" -dev %s -synthesis \"%s\"",PROJECT_NAME,PROJECT_NAME,device,synth_engine);
 
 	for (String fname : hdlFiles) {
 		//String path = fname.replace(projectPath,"../");
-		out.stmt("prj_src add \"%s\"",toUnixPath(getRelativePathAsPath(fname)));
+		out.stmt("prj_src add \"%s\"",toTclPath(getRelativePathAsPath(fname)));
 	}
 	out.stmt("prj_project save");
 	
@@ -303,11 +324,9 @@ public class LatticeDownload extends FPGADownload {
   private boolean generateRunScript() {
 
     //String vhdlListPath = scriptPath.replace(projectPath, "../") + vhdl_list_file;
-    String prjFile = toTclPath(getRelativePathAsPath(sandboxPath,PROJECT_FILE));
-    
     Hdl out = new Hdl(lang, err);
 
-    out.stmt("prj_project open \"%s\"",prjFile);
+    out.stmt("prj_project open \"%s\"",PROJECT_FILE);
     out.stmt("");
     out.stmt("prj_run Synthesis -impl impl1");
     out.stmt("prj_run Translate -impl impl1");
@@ -321,7 +340,6 @@ public class LatticeDownload extends FPGADownload {
 	boolean success = f != null && FileWriter.WriteContents(f, out, err);
     
 	// --- windows synthesis script ---
-	out = new Hdl(lang, err);
 	
 	Path latticeToolPath = Paths.get(Settings.getSettings().GetLatticeToolPath());
 	String binDirectory = latticeToolPath.getFileName().toString();	// either "nt" or "nt64"
@@ -348,64 +366,83 @@ public class LatticeDownload extends FPGADownload {
 	Path tcl_prj_creation_file = getRelativePathAsPath(scriptPath,PROJECT_CREATION_TCL_FILE);
 	Path tcl_prj_synth_file = getRelativePathAsPath(scriptPath,PROJECT_RUN_TCL_FILE);
 	
-	out.stmt("@echo off",toWinPath(toolPath));
-	out.stmt("set LCD_DIAMOND_PATH=%s",toWinPath(toolPath));
-	out.stmt("");
-	out.stmt("set LSC_INI_PATH=");
-	out.stmt("set LSC_DIAMOND=true");
-	out.stmt("set TCL_LIBRARY=%s",toWinPath(tclLibPath));
-	out.stmt("set FOUNDRY=%s\\ispfpga",toWinPath(toolPath));
-	out.stmt("set PATH=%%FOUNDRY%%\\bin\\%s;%%PATH%%",binDirectory);
-	out.stmt("\"%s/pnmainc.exe\" %s",toWinPath(latticeToolPath),toWinPath(tcl_prj_creation_file));
-	out.stmt("\"%s/pnmainc.exe\" %s",toWinPath(latticeToolPath),toWinPath(tcl_prj_synth_file));
-	out.stmt("EXIT /B %%ERRORLEVEL%%");
-    
-	f = FileWriter.GetFilePointer(scriptPath, PROJECT_RUN_FILE, err);
-	success &= f != null && FileWriter.WriteContents(f, out, err);
-	
-	// ---- linux synthesis script ----
-	out = new Hdl(lang, err);
-	
-	out.stmt("export TEMP=/tmp");
-	out.stmt("export LSC_INI_PATH=\"\"");
-	out.stmt("export LSC_DIAMOND=true");
-	out.stmt("export TCL_LIBRARY=%s",toUnixPath(tclLibPath));
-	out.stmt("export FOUNDRY=%s/ispFPGA",toUnixPath(toolPath));
-	out.stmt("export PATH=$FOUNDRY/bin/%s:$PATH",binDirectory);
-	out.stmt("%s/diamondc %s",toUnixPath(latticeToolPath), toUnixPath(tcl_prj_creation_file));
-	out.stmt("%s/diamondc %s",toUnixPath(latticeToolPath), toUnixPath(tcl_prj_synth_file));
-			
-	f = FileWriter.GetFilePointer(scriptPath, PROJECT_RUN_FILE_UNIX, err);
-	success &= f != null && FileWriter.WriteContents(f, out, err);
+	String fpgaTool = getTool();
+	TOOLCHAIN toolChainTpye = getToolChainTypeFromToolname(fpgaTool);
+	Path latticeTool = latticeToolPath.resolve(fpgaTool);
 
+	if (toolChainTpye == TOOLCHAIN.DIAMOND_WIN) {
+		out = new Hdl(lang, err);
+
+		out.stmt("@echo off",toWinPath(toolPath));
+		out.stmt("set LCD_DIAMOND_PATH=%s",toWinPath(toolPath));
+		out.stmt("");
+		out.stmt("set LSC_INI_PATH=");
+		out.stmt("set LSC_DIAMOND=true");
+		out.stmt("set TCL_LIBRARY=%s",toWinPath(tclLibPath));
+		out.stmt("set FOUNDRY=%s\\ispfpga",toWinPath(toolPath));
+		out.stmt("set PATH=%%FOUNDRY%%\\bin\\%s;%%PATH%%",binDirectory);
+		out.stmt("\"%s\" %s",toWinPath(latticeTool),toWinPath(tcl_prj_creation_file));
+		out.stmt("\"%s\" %s",toWinPath(latticeTool),toWinPath(tcl_prj_synth_file));
+		out.stmt("EXIT /B %%ERRORLEVEL%%");
+	    
+		f = FileWriter.GetFilePointer(scriptPath, PROJECT_RUN_FILE, err);
+		success &= f != null && FileWriter.WriteContents(f, out, err);
+	}
+	
+	// ---- Unix and Cygwin synthesis script ----
+	if (toolChainTpye != TOOLCHAIN.ISP_LEVER_WIN) {
+		out = new Hdl(lang, err);
+		
+		out.stmt("export TEMP=/tmp");
+		out.stmt("export LSC_INI_PATH=\"\"");
+		out.stmt("export LSC_DIAMOND=true");
+		out.stmt("export TCL_LIBRARY=%s",toUnixPath(tclLibPath));
+		out.stmt("export FOUNDRY=%s/ispFPGA",toUnixPath(toolPath));
+		out.stmt("export PATH=$FOUNDRY/bin/%s:$PATH",binDirectory);
+		out.stmt("%s %s",toUnixPath(latticeTool), toUnixPath(tcl_prj_creation_file));
+		out.stmt("%s %s",toUnixPath(latticeTool), toUnixPath(tcl_prj_synth_file));
+				
+		f = FileWriter.GetFilePointer(scriptPath, PROJECT_RUN_FILE_UNIX, err);
+		success &= f != null && FileWriter.WriteContents(f, out, err);
+	} else {
 	// --- ispLEVER synthesis file => open project navigator for the user
-	String prj_isplever_file = getRelativePath(sandboxPath,PROJECT_FILE_ISPLEVER);
-	String projnav = toWinPath(latticeToolPath.resolve("projnav.exe"));
-
-	out = new Hdl(lang, err);
-	out.stmt("@echo off");
-	out.stmt("rem start project navigator and wait until it is finished. The user has to perfrom the synthesis!");
-	out.stmt("start /B /wait \"%s\" \"%s\"",projnav,prj_isplever_file);
-	f = FileWriter.GetFilePointer(scriptPath, PROJECT_RUN_FILE_ISPLEVER, err);
-	success &= f != null && FileWriter.WriteContents(f, out, err);	
+		String prj_isplever_file = getRelativePath(sandboxPath,PROJECT_FILE_ISPLEVER);
+		String projnav = toWinPath(latticeToolPath.resolve("projnav.exe"));
+	
+		out = new Hdl(lang, err);
+		out.stmt("@echo off");
+		out.stmt("rem start project navigator and wait until it is finished. The user has to perfrom the synthesis!");
+		out.stmt("start /B /wait \"%s\" \"%s\"",projnav,prj_isplever_file);
+		f = FileWriter.GetFilePointer(scriptPath, PROJECT_RUN_FILE_ISPLEVER, err);
+		success &= f != null && FileWriter.WriteContents(f, out, err);
+	}
 	
 	return success;
   }
 
   private boolean generateDownloadScript() {
+
 	  // --- download tcl file --- 
+	  String srcXcfFile = toTclPath(getRelativePathAsPath(sandboxPath,PROJECT_NAME+".xcf"));
+	  String cpyXcfFile = toTclPath(getRelativePathAsPath(sandboxPath,PROJECT_NAME+"_latest.xcf"));
 	  Hdl out = new Hdl(lang, err);
-	  out.stmt("pgr_project open \"%s\"",toTclPath(getRelativePathAsPath(sandboxPath,PROJECT_NAME+".xcf")));
+	  out.stmt("pgr_project open \"%s\"",srcXcfFile);
 	  out.stmt("pgr_program set -cable %s -portaddress %s","usb2","FTUSB-0");
-	  out.stmt("pgr_project save \"%s_latest.xcf\"",PROJECT_NAME);
+	  out.stmt("pgr_project save \"%s\"",cpyXcfFile);
 	  out.stmt("pgr_project close");
 	  out.stmt("");
-	  out.stmt("pgr_project open \"%s_latest.xcf\"",PROJECT_NAME);
-	  out.stmt("pgr_program run");
+	  out.stmt("pgr_project open \"%s\"",cpyXcfFile);
+	  out.stmt("if {[catch {");
+	  out.stmt("	pgr_program run");
+	  out.stmt("} result]} {");
+	  out.stmt("    # in case of failure, try with FTUSB-1");
+	  out.stmt("	pgr_program set -portaddress FTUSB-1");
+	  out.stmt("	pgr_program run");
+	  out.stmt("}");
 	  out.stmt("pgr_project close");
 	  File f = FileWriter.GetFilePointer(scriptPath, PROJECT_DOWNLOAD_TCL_FILE, err);
 	  boolean success = f != null && FileWriter.WriteContents(f, out, err);
-	  
+
 	  // --- download xcf-filefor Lattice Diamond ----
 	  Chipset chip = board.fpga;
 	  String chip_family = chip.Technology;
@@ -463,31 +500,47 @@ public class LatticeDownload extends FPGADownload {
 	  f = FileWriter.GetFilePointer(sandboxPath, PROJECT_DOWNLOAD_CONFIG_FILE, err);
 	  success &= f != null && FileWriter.WriteContents(f, out, err);
 	  
-	  // --- download run scripts ----
+	  // --- download run scripts
+	  String fpgaTool = getTool();
+	  TOOLCHAIN toolChainType = getToolChainTypeFromToolname(fpgaTool);
+	  if (fpgaTool == null) {
+		  return false;
+	  }
 	  Path latticeToolPath = Paths.get(Settings.getSettings().GetLatticeToolPath());
+	  Path latticeTool = latticeToolPath.resolve(fpgaTool);
 	  
-	  out = new Hdl(lang, err);
-	  out.stmt("\"%s\\pnmainc.exe\" \"%s\"",toWinPath(latticeToolPath),toTclPath(getRelativePathAsPath(scriptPath,PROJECT_DOWNLOAD_TCL_FILE)));
-	  f = FileWriter.GetFilePointer(scriptPath, PROJECT_DOWNLOAD_FILE, err);
-	  success &= f != null && FileWriter.WriteContents(f, out, err);
+	  // --- Windows ----
+	  if (toolChainType == TOOLCHAIN.DIAMOND_WIN) {
+		  out = new Hdl(lang, err);
+		  out.stmt("\"%s\" \"%s\"",toWinPath(latticeTool),toWinPath(getRelativePathAsPath(scriptPath,PROJECT_DOWNLOAD_TCL_FILE)));
+		  f = FileWriter.GetFilePointer(scriptPath, PROJECT_DOWNLOAD_FILE, err);
+		  success &= f != null && FileWriter.WriteContents(f, out, err);
+	  }
 	  
-	  out = new Hdl(lang, err);
-	  out.stmt("%s/diamondc \"%s\"",toUnixPath(latticeToolPath),toTclPath(getRelativePathAsPath(scriptPath,PROJECT_DOWNLOAD_TCL_FILE)));
-	  f = FileWriter.GetFilePointer(scriptPath, PROJECT_DOWNLOAD_FILE_UNIX, err);
-	  success &= f != null && FileWriter.WriteContents(f, out, err);
-
-	  out = new Hdl(lang, err);
-	  out.stmt("@echo off");
-	  out.stmt("rem start ispVM and wait until it is finished. The user has to perfrom the download!");
-	  out.stmt("cd \"%s\"",toWinPath(getRelativePathAsPath(sandboxPath)));
-	  out.stmt("if not exist impl1\\ md impl1");
-	  out.stmt("copy /Y %s.jed impl1\\%s_impl1.jed",PROJECT_NAME,PROJECT_NAME);
-	  out.stmt("start /B /wait %s/../../ispvmsystem/ispVM.exe -infile %s -cabletype %s -portaddress %s -logfile %s -o",toWinPath(latticeToolPath),PROJECT_DOWNLOAD_CONFIG_FILE,"usb2","ftusb-0","output_download.txt");
-	  // -o opens a windows with information
-      out.stmt("EXIT /B %%ERRORLEVEL%%");
-
-	  f = FileWriter.GetFilePointer(scriptPath, PROJECT_DOWNLOAD_FILE_ISPLEVER, err);
-	  success &= f != null && FileWriter.WriteContents(f, out, err);	
+	  // --- Unix and Cygwin ---
+	  if (toolChainType != TOOLCHAIN.ISP_LEVER_WIN) {
+		  out = new Hdl(lang, err);
+		  out.stmt("%s \"%s\"",toUnixPath(latticeTool),toUnixPath(getRelativePathAsPath(scriptPath,PROJECT_DOWNLOAD_TCL_FILE)));
+		  f = FileWriter.GetFilePointer(scriptPath, PROJECT_DOWNLOAD_FILE_UNIX, err);
+		  success &= f != null && FileWriter.WriteContents(f, out, err);
+	  } else {
+	  // --- ispLEVER / ispVM ---
+		  out = new Hdl(lang, err);
+		  out.stmt("@echo off");
+		  out.stmt("rem start ispVM and wait until it is finished. The user has to perfrom the download!");
+		  out.stmt("cd \"%s\"",toWinPath(getRelativePathAsPath(sandboxPath)));
+		  out.stmt("if not exist impl1\\ md impl1");
+		  out.stmt("copy /Y %s.jed impl1\\%s_impl1.jed",PROJECT_NAME,PROJECT_NAME);
+		  out.stmt("start /B /wait %s/../../ispvmsystem/ispVM.exe -infile %s -cabletype %s -portaddress %s -logfile %s -o",toWinPath(latticeToolPath),PROJECT_DOWNLOAD_CONFIG_FILE,"usb2","ftusb-0","output_download.txt");
+		  // -o opens a windows with information
+		  out.stmt("if %%ERRORLEVEL%% == 0 goto finish");
+		  out.stmt("start /B /wait %s/../../ispvmsystem/ispVM.exe -infile %s -cabletype %s -portaddress %s -logfile %s -o",toWinPath(latticeToolPath),PROJECT_DOWNLOAD_CONFIG_FILE,"usb2","ftusb-1","output_download.txt");
+		  out.stmt(":finish");
+	      out.stmt("EXIT /B %%ERRORLEVEL%%");
+	
+		  f = FileWriter.GetFilePointer(scriptPath, PROJECT_DOWNLOAD_FILE_ISPLEVER, err);
+		  success &= f != null && FileWriter.WriteContents(f, out, err);	
+	  }
 	  
 	  return success;
   }
