@@ -63,7 +63,7 @@ public class BoardReader {
 				doc = parser.parse(new File(name));
       }
 
-      int i = name.lastIndexOf('/');
+      int i = Math.max(name.lastIndexOf('/'),name.lastIndexOf('\\'));
       name = i < 0 ? name : name.substring(i+1);
       if (name.toLowerCase().endsWith(".xml"))
         name = name.substring(0, name.length()-4);

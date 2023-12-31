@@ -57,6 +57,7 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
 import com.bfh.logisim.download.FPGADownload;
+import com.bfh.logisim.download.LatticeDownload;
 import com.bfh.logisim.gui.FPGASettingsDialog;
 import com.cburch.logisim.util.Errors;
 
@@ -70,6 +71,7 @@ public class Settings {
   private static final String WorkPathName = "logisim_fpga_workspace" + File.separator;
   private static final String XilinxToolsPath = "XilinxToolsPath";
   private static final String AlteraToolsPath = "AlteraToolsPath";
+  private static final String LatticeToolsPath = "LatticeToolsPath";
   private static final String Altera64Bit = "Altera64Bit";
   private static final String HDLTypeToGenerate = "HDLTypeToGenerate";
   private static final String FPGABoards = "FPGABoards";
@@ -213,6 +215,11 @@ public class Settings {
     return normalizePath(s);
   }
 
+  public String GetLatticeToolPath() {
+	    String s = getAttribute(WorkSpace, LatticeToolsPath, "");
+	    return normalizePath(s);
+	  }
+
   public boolean SetAlteraToolPath(String path) {
     path = normalizePath(path);
     if (path != null && !allToolsPresent(path, FPGADownload.ALTERA_PROGRAMS))
@@ -226,6 +233,18 @@ public class Settings {
     if (path != null && !allToolsPresent(path, FPGADownload.XILINX_PROGRAMS))
       return false;
     setAttribute(WorkSpace, XilinxToolsPath, path);
+    return true;
+  }
+
+  public boolean SetLatticeToolPath(String path) {
+    path = normalizePath(path);
+    /*
+    if (path != null && !allToolsPresent(path, FPGADownload.LATTICE_PROGRAMS))
+      return false;
+    */
+    if (path != null && LatticeDownload.getToolChainType(path) == LatticeDownload.TOOLCHAIN.UNKNOWN)
+    	return false;
+    setAttribute(WorkSpace, LatticeToolsPath, path);
     return true;
   }
 

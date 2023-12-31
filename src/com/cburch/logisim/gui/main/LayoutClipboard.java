@@ -172,6 +172,9 @@ public class LayoutClipboard<T>
 
   public void flavorsChanged(FlavorEvent e) {
     boolean oldAvail = available;
+    // wait a small amount of time until the clipboard is ready (avoid exception "cannot open system clipboard)
+    // see https://stackoverflow.com/questions/51797673/in-java-why-do-i-get-java-lang-illegalstateexception-cannot-open-system-clipboa
+    try { Thread.sleep(10); } catch (InterruptedException ex) { };
     external = sysclip.isDataFlavorAvailable(dnd.dataFlavor);
     available = current != null || external;
     if (oldAvail != available)

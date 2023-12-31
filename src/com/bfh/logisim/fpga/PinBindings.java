@@ -40,6 +40,7 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
 import com.bfh.logisim.gui.FPGAReport;
+import com.bfh.logisim.netlist.Netlist.Int3;
 import com.bfh.logisim.netlist.NetlistComponent;
 import com.bfh.logisim.netlist.Path;
 import com.cburch.logisim.file.XmlIterator;
@@ -90,8 +91,8 @@ import static com.bfh.logisim.netlist.Netlist.Int3;
 //
 // BindingsDialog is the UI for configuring the bindings.
 //
-// The Xilinx and Altera FPGA download scripts use this to get the list of pin
-// locations that need to be given to the HDL synthesis tools.
+// The Xilinx, Altera and Lattice FPGA download scripts use this to get the 
+// list of pin locations that need to be given to the HDL synthesis tools.
 //   see: GetFPGAPinLocs(int vendor)
 //
 // TopLevelHDLGenerator uses this:
@@ -344,7 +345,7 @@ public class PinBindings {
         for (int i = 0; i < w; i++)
           f.process(pins[b+i], signalPrefix + (seqno + i), d.io,
               d.bit < 0 ? d.io.toString() :
-              String.format("%s of %s", labels[i], d.io.toString()));
+              String.format("%s of %s", labels[b+i], d.io.toString()));
       }
     });
   }

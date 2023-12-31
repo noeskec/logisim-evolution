@@ -31,15 +31,15 @@
 package com.bfh.logisim.fpga;
 
 public class PullBehavior {
-  public final String desc, altera, xilinx;
+  public final String desc, altera, xilinx, lattice;
 
-  public static final PullBehavior FLOAT = new PullBehavior("Float", "TRI-STATED", "FLOAT");
-  public static final PullBehavior PULL_UP = new PullBehavior("Pull Up", "PULLUP", "PULLUP");
-  public static final PullBehavior PULL_DOWN = new PullBehavior("Pull Down", "PULLDOWN", "PULLDOWN");
-  public static final PullBehavior UNKNOWN = new PullBehavior("Unknown", "", "FLOAT");
+  public static final PullBehavior FLOAT = new PullBehavior("Float", "TRI-STATED", "FLOAT", "KEEPER");
+  public static final PullBehavior PULL_UP = new PullBehavior("Pull Up", "PULLUP", "PULLUP", "UP");
+  public static final PullBehavior PULL_DOWN = new PullBehavior("Pull Down", "PULLDOWN", "PULLDOWN", "DOWN");
+  public static final PullBehavior UNKNOWN = new PullBehavior("Unknown", "", "FLOAT", "NONE");
   public static final PullBehavior[] OPTIONS = { FLOAT, PULL_UP, PULL_DOWN };
 
-  private PullBehavior(String d, String a, String x) { desc = d; altera = a; xilinx = x; }
+  private PullBehavior(String d, String a, String x, String l) { desc = d; altera = a; xilinx = x; lattice = l;}
 
   public static PullBehavior get(String desc) {
     for (PullBehavior p : OPTIONS)

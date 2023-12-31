@@ -226,10 +226,11 @@ public class BoardEditor extends JFrame {
 		JFileChooser fc = new JFileChooser();
 		fc.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
 		fc.setDialogTitle("Choose directory to save XML board description:");
-		int retval = fc.showOpenDialog(null);
+		int retval = fc.showSaveDialog(null);
 		if (retval != JFileChooser.APPROVE_OPTION)
       return null;
     String dir = fc.getSelectedFile().getPath();
+    dir = dir.replaceAll("\\\\","/");
     if (!dir.endsWith("/"))
       dir += "/";
     return dir;

@@ -36,15 +36,18 @@ public class Chipset {
 
 	public static final char ALTERA = 'A';
 	public static final char XILINX = 'X';
+	public static final char LATTICE = 'L';
 	public static final char UNKNOWN = '?';
 
-  public static final String[] VENDORS = { "Altera", "Xilinx" };
+  public static final String[] VENDORS = { "Altera", "Xilinx", "Lattice" };
 
 	private static char getVendor(String desc) {
     if (desc.equalsIgnoreCase("Altera"))
       return ALTERA;
     if (desc.equalsIgnoreCase("Xilinx"))
       return XILINX;
+    if (desc.equalsIgnoreCase("Lattice"))
+        return LATTICE;
     return UNKNOWN;
 	}
 

@@ -59,7 +59,9 @@ public abstract class FPGADownload {
   }
 
   public static FPGADownload forVendor(char vendor) {
-    if (vendor == Chipset.ALTERA)
+    if (vendor == Chipset.LATTICE)
+        return new LatticeDownload();
+    else if (vendor == Chipset.ALTERA)
       return new AlteraDownload();
     else
       return new XilinxDownload();
@@ -139,6 +141,13 @@ public abstract class FPGADownload {
     XILINX_BITGEN, XILINX_IMPACT, XILINX_CPLDFIT, XILINX_HPREP6,
   };
 
+  public static final String LATTICE_DIAMOND_WIN = "pnmainc" + dotexe;
+  public static final String LATTICE_DIAMOND_UNIX = "diamondc";
+  public static final String LATTICE_ISPLEVER_WIN = "projnav" + dotexe;
+  public static final String[] LATTICE_PROGRAMS = {
+      LATTICE_DIAMOND_WIN, LATTICE_DIAMOND_UNIX // , LATTICE_ISPLEVER_WIN
+  };
+
   public class Stage {
     public final String title, msg, errmsg;
     public Console console;
@@ -169,22 +178,22 @@ public abstract class FPGADownload {
         completion.run();
         return;
       }
-      console.printf(console.INFO, "Command: %s\n", shellEscape(cmd));
+      console.printf(Console.INFO, "Command: %s\n", shellEscape(cmd));
       ProcessBuilder builder = new ProcessBuilder(cmd);
       builder.directory(new File(sandboxPath));
       Process process;
       try {
         process = builder.start();
       } catch (IOException e) {
-        console.printf(console.ERROR, e.getMessage());
+        console.printf(Console.ERROR, e.getMessage());
         failed = true;
         completion.run();
         return;
       }
       InputStream stdout = process.getInputStream();
       InputStream stderr = process.getErrorStream();
-      Thread t1 = console.copyFrom(console.INFO, stdout);
-      Thread t2 = console.copyFrom(console.WARNING, stderr);
+      Thread t1 = console.copyFrom(Console.INFO, stdout);
+      Thread t2 = console.copyFrom(Console.WARNING, stderr);
       thread = new Thread(() -> {
         try {
           process.waitFor();
@@ -192,12 +201,12 @@ public abstract class FPGADownload {
           t2.join(500);
           if (t1.isAlive()) {
             try { stdout.close(); } 
-            catch (IOException e) { console.printf(console.ERROR, e.getMessage()); }
+            catch (IOException e) { console.printf(Console.ERROR, e.getMessage()); }
             t1.join();
           }
           if (t2.isAlive()) {
             try { stderr.close(); }
-            catch (IOException e) { console.printf(console.ERROR, e.getMessage()); }
+            catch (IOException e) { console.printf(Console.ERROR, e.getMessage()); }
             t2.join();
           }
           exitValue = process.exitValue();

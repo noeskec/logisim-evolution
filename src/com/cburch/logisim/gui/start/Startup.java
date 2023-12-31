@@ -561,6 +561,15 @@ public class Startup {
   }
 
   public void run() {
+    try {
+      // --- added by CN
+        UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+        //UIManager.setLookAndFeel("com.sun.java.swing.plaf.windows.WindowsLookAndFeel");
+        // ---
+    } catch(Exception e) {
+        e.printStackTrace();
+        System.exit(1);
+    }
     if (Main.headless) {
       try {
         TtyInterface.run(this);

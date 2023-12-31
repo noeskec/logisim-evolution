@@ -38,6 +38,7 @@ import com.bfh.logisim.fpga.PinBindings;
 import com.bfh.logisim.library.DynamicClock;
 import com.bfh.logisim.netlist.ClockBus;
 import com.bfh.logisim.netlist.Netlist;
+import com.bfh.logisim.netlist.Netlist.Int3;
 import com.bfh.logisim.netlist.NetlistComponent;
 import com.bfh.logisim.netlist.Path;
 import com.cburch.logisim.circuit.Circuit;
@@ -214,7 +215,7 @@ public class ToplevelHDLGenerator extends HDLGenerator {
   }
 
   private boolean needTopLevelInversion(Component comp, BoardIO io) {
-    boolean boardIsActiveHigh = io.activity == PinActivity.ACTIVE_HIGH;
+    boolean boardIsActiveHigh = io.activity != PinActivity.ACTIVE_LOW;
     boolean compIsActiveHigh = comp.getFactory().ActiveOnHigh(comp.getAttributeSet());
     return boardIsActiveHigh ^ compIsActiveHigh;
   }
@@ -284,14 +285,14 @@ public class ToplevelHDLGenerator extends HDLGenerator {
         // Handle physical I/O device types.
         Netlist.Int3 seqno = dest.seqno();
         // Input pins
-        if (destwidth.in == 1)
+        if (src.width.in == 1)
           out.assign(signal, maybeNot+"FPGA_INPUT_PIN_"+seqno.in);
-        else for (int i = 0; i < destwidth.in; i++)
+        else for (int i = 0; i < src.width.in; i++)
           out.assign(bit, offset+i, maybeNot+"FPGA_INPUT_PIN_"+(seqno.in+i));
         // Output pins
-        if (destwidth.out == 1)
+        if (src.width.out == 1)
           out.assign("FPGA_OUTPUT_PIN_"+seqno.out, maybeNot+signal);
-        else for (int i = 0; i < destwidth.out; i++)
+        else for (int i = 0; i < src.width.out; i++)
           out.assign("FPGA_OUTPUT_PIN_"+(seqno.out+i), maybeNot+bit, offset+i);
         // Note: no such thing as inout pins
       }
@@ -314,10 +315,12 @@ public class ToplevelHDLGenerator extends HDLGenerator {
         } else {
           // Handle physical I/O device types.
           Netlist.Int3 seqno = dest.seqno();
-          if (destwidth.in == 1)
+          //if ((destwidth.in > 0) || ((destwidth.inout > 0) && (src.width.in > 0)))
+          if (src.width.in > 0)	// use src-signals for distinction, because they have always a direction 
             out.assign(bit, offset+i, maybeNot+"FPGA_INPUT_PIN_"+seqno.in);
           // Output pins
-          if (destwidth.out == 1)
+          //if ((destwidth.out > 0) || ((destwidth.inout > 0) && (src.width.out > 0))) 
+          if (src.width.out > 0) 
             out.assign("FPGA_OUTPUT_PIN_"+seqno.out, maybeNot+bit, offset+i);
           // Note: no such thing as inout pins
         }

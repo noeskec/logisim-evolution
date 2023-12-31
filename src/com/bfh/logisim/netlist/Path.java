@@ -34,7 +34,7 @@ import com.bfh.logisim.hdlgenerator.HDLSupport;
 import com.cburch.logisim.circuit.Circuit;
 import com.cburch.logisim.comp.Component;
 
-// A heirarchical path to a component within the tree of circuits and
+// A hierarchical path to a component within the tree of circuits and
 // subcircuits. Path is immutable. Examples:
 //   MainCirc
 //   MainCirc/FooSubCirc0/
@@ -44,14 +44,16 @@ public class Path {
 
   private final String path; // slash-separated representation
 
-  public Path(String s) { path = s; }
+  public Path(String s) { 
+	  path = s.replaceAll("\\\\","/"); 	// convert Windows separator to the unix one
+  }
 
   // Construct a root path for a top-level circuit.
   public Path(Circuit circ) {
     // Note: root circuit doesn't have a label, so use circuit name instead.
     // The result need not be unique (it could be omitted, but is nice to show
     // for the GUI), so long as it does not have slashes.
-    this(circ.getName().replaceAll("/", "_"));
+    this(circ.getName().replaceAll("/", "_").replaceAll("\\\\", "_"));
   }
 
   // Construct a non-root path for component or subcircuit in some circuit.

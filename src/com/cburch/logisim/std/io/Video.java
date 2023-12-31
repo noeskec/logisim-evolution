@@ -98,15 +98,15 @@ class Video extends ManagedComponent implements ToolTipMaker, AttributeListener 
 
   static final Integer[] SIZE_OPTIONS = { 2, 4, 8, 16, 32, 64, 128, 256 };
 
-  public static final Attribute BLINK_OPTION = Attributes.forOption("cursor",
+  public static final Attribute<String> BLINK_OPTION = Attributes.forOption("cursor",
       S.getter("rgbVideoCursor"), BLINK_OPTIONS);
-  public static final Attribute RESET_OPTION = Attributes.forOption("reset",
+  public static final Attribute<String> RESET_OPTION = Attributes.forOption("reset",
       S.getter("rgbVideoReset"), RESET_OPTIONS);
-  public static final Attribute BLANK_OPTION = Attributes.forOption("blank",
+  public static final Attribute<String> BLANK_OPTION = Attributes.forOption("blank",
       S.getter("rgbVideoBlank"), BLANK_OPTIONS);
   public static final Attribute<ColorModelColor> FIXED_OPTION = forColor("fixed",
       S.getter("rgbVideoFixed"));
-  public static final Attribute MODEL_OPTION = Attributes.forOption("color",
+  public static final Attribute<String> MODEL_OPTION = Attributes.forOption("color",
       S.getter("rgbVideoColor"), MODEL_OPTIONS);
   public static final Attribute<Integer> WIDTH_OPTION = Attributes.forOption("width",
       S.getter("rgbVideoWidth"), SIZE_OPTIONS);

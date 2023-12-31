@@ -427,7 +427,7 @@ public class MemContents implements Cloneable, HexModel {
   }
 
   public void setDimensions(int addrBits, int width) {
-    if (addrBits == this.addrBits && width == this.width)
+    if ((addrBits == this.addrBits) && (width == this.width))
       return;
     this.addrBits = addrBits;
     this.width = width;
@@ -456,7 +456,7 @@ public class MemContents implements Cloneable, HexModel {
         }
       }
     }
-    if (pageCount == 0 && pages[0] == null) {
+    if (pageCount >= 0 && pages[0] == null) {
       pages[0] = MemContentsSub.createPage(pageLength, width);
     }
     fireMetainfoChanged();

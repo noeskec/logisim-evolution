@@ -37,6 +37,7 @@ import com.bfh.logisim.fpga.Chipset;
 import com.bfh.logisim.fpga.PinBindings;
 import com.bfh.logisim.fpga.PullBehavior;
 import com.bfh.logisim.gui.Commander;
+import com.bfh.logisim.gui.Console;
 import com.bfh.logisim.hdlgenerator.FileWriter;
 import com.cburch.logisim.hdl.Hdl;
 
@@ -107,7 +108,7 @@ public class AlteraDownload extends FPGADownload {
         } else if (new File(sandboxPath + TOP_HDL + ".pof").exists()) {
           bitfile = "P;" + TOP_HDL + ".pof";
         } else {
-          console.printf(console.ERROR, "Error: Design must be synthesized before download.");
+          console.printf(Console.ERROR, "Error: Design must be synthesized before download.");
           return false;
         }
         if (!cmdr.confirmDownload()) {
@@ -127,7 +128,7 @@ public class AlteraDownload extends FPGADownload {
           dev.add(line.trim());
         }
         if (dev.size() == 0) {
-          console.printf(console.ERROR, "No USB-Blaster cable detected");
+          console.printf(Console.ERROR, "No USB-Blaster cable detected");
           return false;
         } else if (dev.size() == 1) {
           cablename = "usb-blaster"; // why not dev.get(0)?

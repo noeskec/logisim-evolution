@@ -1060,7 +1060,8 @@ public class Commander extends JFrame
     actionButton.setEnabled(board != null);
     if (board == null
         || (board.fpga.Vendor == Chipset.ALTERA && settings.GetAlteraToolPath() == null)
-        || (board.fpga.Vendor == Chipset.XILINX && settings.GetXilinxToolPath() == null)) {
+        || (board.fpga.Vendor == Chipset.XILINX && settings.GetXilinxToolPath() == null)
+        || (board.fpga.Vendor == Chipset.LATTICE && settings.GetLatticeToolPath() == null)) {
       if (board == null) {
         eprintf("Please select an FPGA board.");
       } else {
@@ -1070,8 +1071,13 @@ public class Commander extends JFrame
             + "Please set the " + vendor + " tool path "
             + "using the \"Settings\" button above, or choose "
             + "a board from a different vendor.");
-        String[] toolset = board.fpga.Vendor == Chipset.ALTERA ?
-            FPGADownload.ALTERA_PROGRAMS : FPGADownload.XILINX_PROGRAMS;
+        String[] toolset=null;
+        switch (board.fpga.Vendor) {
+        case Chipset.ALTERA: toolset = FPGADownload.ALTERA_PROGRAMS; break;
+        case Chipset.XILINX: toolset = FPGADownload.XILINX_PROGRAMS; break;
+        case Chipset.LATTICE: toolset = FPGADownload.LATTICE_PROGRAMS; break;
+        default: eprintf("Unknown vendor for board, please use either Altera, Xilinx or Lattice.");
+        }
         iprintf("The tool path for " + vendor + " must contain these progams:\n"
             + "         " + String.join(", ", toolset));
       }
